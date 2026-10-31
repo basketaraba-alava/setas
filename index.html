@@ -122,7 +122,7 @@
   <div class="lock-card">
     <div class="emoji">🔒</div>
     <h2>App privada</h2>
-    <p>Esta app es de uso personal. Ábrela desde tu enlace personal para usarla.</p>
+    <p id="lockMsg">Esta app es de uso personal. Ábrela desde tu enlace personal para usarla.</p>
   </div>
 </div>
 
@@ -155,7 +155,7 @@
 </main>
 
 <footer>
-  Orientación automática (Mushroom.id / Kindwise). La foto se envía a ese servicio externo para analizarla; ellos la conservan para mejorar su sistema y la anonimizan a los 6 meses. En esta app no se guarda nada.<br>
+  Orientación automática (Mushroom.id / Kindwise). La foto se envía a ese servicio externo para analizarla; ellos la conservan para mejorar su sistema y la anonimizan a los 6 meses. Esta app no guarda tus fotos.<br>
   Si alguien se encuentra mal tras comer setas: <a href="tel:112">112</a> o Instituto Nacional de Toxicología <a href="tel:915620420">91 562 04 20</a>.
 </footer>
 
@@ -166,7 +166,7 @@
       <li>Esta app identifica setas por foto <strong>solo a título orientativo</strong>. Las mejores herramientas de este tipo se equivocan con frecuencia, también con setas venenosas.</li>
       <li>Si la app no llega a identificar la seta, dirá <strong>«no identificada»</strong>: nunca interpretes eso como que es segura.</li>
       <li><strong>Nunca decidas comer una seta por lo que diga esta app.</strong> Solo una persona experta que la examine en mano puede confirmarlo.</li>
-      <li>Tu foto se envía a un servicio externo (Mushroom.id, de Kindwise) para analizarla. Ese servicio la conserva para entrenar y mejorar su sistema y la anonimiza a los 6 meses. En tu móvil no se guarda nada.</li>
+      <li>Tu foto se envía a un servicio externo (Mushroom.id, de Kindwise) para analizarla. Ese servicio la conserva para entrenar y mejorar su sistema y la anonimiza a los 6 meses. Esta app no guarda tu foto en el móvil; solo conserva tu consentimiento y tu acceso en este dispositivo.</li>
       <li>Puedes activar una <strong>alarma sonora</strong> que suena solo cuando la app detecta posible toxicidad en alguna coincidencia plausible. Que no suene no significa que la seta sea segura.</li>
     </ul>
     <button class="btn btn-primary" id="acceptBtn">Entendido</button>
@@ -190,18 +190,46 @@
 
   // Endpoint del proxy (Edge Function). Se configura al desplegar.
   var PROXY_URL = "https://xwbzzbdfvmriysvmugon.supabase.co/functions/v1/identificar-seta";
-  // Acceso privado: la capability llega SOLO en el enlace personal de Javi (fragmento #k=,
-  // nunca en query), se guarda en este dispositivo (localStorage) y la valida el servidor.
+  // Acceso privado: enlace de canje de UN SOLO USO con caducidad (fragmento #c=, nunca en query).
+  // El servidor lo canjea por una clave de dispositivo aleatoria; la clave vive solo aquí
+  // (localStorage) y en el servidor, nunca en el repositorio.
   var appKey = null;
-  try {
-    var h = window.location.hash || '';
-    var m = h.match(/#k=([A-Za-z0-9_\-]{20,})/);
-    if (m) {
-      localStorage.setItem('setas_key', m[1]);
-      history.replaceState(null, '', window.location.pathname + window.location.search);
-    }
-    appKey = localStorage.getItem('setas_key');
-  } catch(e){}
+  try { appKey = localStorage.getItem('setas_key'); } catch(e){}
+  var hashMatch = (window.location.hash || '').match(/#c=([A-Za-z0-9_\-]{20,})/);
+  var canjePendiente = false;
+  function mostrarLock(msg) {
+    if (msg) document.getElementById('lockMsg').textContent = msg;
+    introModal.classList.remove('on');
+    document.getElementById('lockScreen').classList.add('on');
+  }
+  function mostrarIntroSiPrimerUso() {
+    try { if (!localStorage.getItem('setas_aviso_ok')) introModal.classList.add('on'); }
+    catch(e) { introModal.classList.add('on'); }
+  }
+  if (hashMatch && !appKey) {
+    canjePendiente = true;
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    fetch(PROXY_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'canjear', code: hashMatch[1]})
+    }).then(function(r){ return r.json().then(function(j){ return {s: r.status, j: j}; }); })
+    .then(function(res){
+      canjePendiente = false;
+      if (res.s === 200 && res.j && res.j.token) {
+        try { localStorage.setItem('setas_key', res.j.token); } catch(e){}
+        appKey = res.j.token;
+        document.getElementById('lockScreen').classList.remove('on');
+        mostrarIntroSiPrimerUso();
+      } else {
+        mostrarLock('Este enlace ya se ha usado o ha caducado. Pide uno nuevo.');
+      }
+    })
+    .catch(function(){
+      canjePendiente = false;
+      mostrarLock('No se pudo activar el acceso. Revisa tu conexión y vuelve a abrir tu enlace.');
+    });
+  }
 
 
   var camInput = document.getElementById('camInput');
@@ -253,10 +281,8 @@
   try {
     if (!localStorage.getItem('setas_aviso_ok')) introModal.classList.add('on');
   } catch(e) { introModal.classList.add('on'); }
-  if (!appKey) {
-    introModal.classList.remove('on');
-    document.getElementById('lockScreen').classList.add('on');
-  }
+  if (!appKey && !canjePendiente) mostrarLock();
+  if (canjePendiente) mostrarLock('Activando tu acceso…');
   document.getElementById('acceptBtn').addEventListener('click', function(){
     try { localStorage.setItem('setas_aviso_ok', '1'); } catch(e){}
     introModal.classList.remove('on');
@@ -347,7 +373,7 @@
       var t = ed === 'deadly' ? 'ALERTA: PUEDE SER MORTAL' : 'ALERTA: POSIBLE SETA VENENOSA';
       return '<div class="alert alert-danger"><div class="icon">☠️</div><div>' +
         '<h2>' + t + '</h2>' +
-        '<p>Según la base de datos, esta especie es tóxica' + (psy ? ' y psicoactiva' : '') + '. No la toques más de lo necesario, no la mezcles con otras setas y, por supuesto, no la comas.</p>' +
+        '<p>Según la base de datos, esta especie es tóxica' + (psy ? ' y psicoactiva' : '') + '. No la comas: solo un experto en persona puede confirmar si una seta es segura.</p>' +
         '</div></div>';
     }
     if (ed === 'inedible') {
