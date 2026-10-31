@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1c2b1e">
+<title>¿Qué seta es? - Orientación con foto</title>
+<style>
+  :root{
+    --bg:#121a13; --card:#1c2b1e; --card2:#243524; --txt:#eef4ec; --muted:#a8b8a6;
+    --accent:#7bc47f; --danger:#e5534b; --danger-bg:#3a1d1b; --warn:#e0a13c; --warn-bg:#3a2f1a;
+    --radius:14px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg); color:var(--txt); min-height:100vh;
+    padding:0 0 calc(24px + env(safe-area-inset-bottom));
+  }
+  header{
+    padding:calc(14px + env(safe-area-inset-top)) 16px 12px;
+    display:flex; align-items:center; gap:10px;
+  }
+  header h1{font-size:20px; font-weight:700; flex:1;}
+  header .info-btn{
+    width:34px; height:34px; border-radius:50%; border:1px solid var(--muted);
+    background:transparent; color:var(--muted); font-size:17px; font-weight:700; cursor:pointer;
+  }
+  .disclaimer{
+    margin:0 16px 14px; padding:10px 12px; border-radius:var(--radius);
+    background:var(--warn-bg); border:1px solid var(--warn);
+    font-size:13px; line-height:1.45; color:#f3e2bd;
+  }
+  main{padding:0 16px; max-width:520px; margin:0 auto;}
+  .capture-zone{
+    background:var(--card); border-radius:var(--radius); padding:22px 16px;
+    display:flex; flex-direction:column; gap:12px; align-items:center;
+  }
+  .capture-zone p{font-size:14px; color:var(--muted); text-align:center; line-height:1.4;}
+  .btn{
+    width:100%; padding:15px; border:none; border-radius:12px; font-size:16px; font-weight:600;
+    cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .btn-primary{background:var(--accent); color:#10220f;}
+  .btn-secondary{background:var(--card2); color:var(--txt); border:1px solid #3a5238;}
+  .preview{
+    width:100%; border-radius:12px; display:none; max-height:280px; object-fit:cover;
+  }
+  .spinner{
+    display:none; width:100%; text-align:center; padding:18px 0; font-size:15px; color:var(--muted);
+  }
+  .spinner.on{display:block;}
+  .result{margin-top:16px; display:none;}
+  .result.on{display:block;}
+  .alert{
+    border-radius:var(--radius); padding:16px; margin-bottom:14px;
+    display:flex; gap:12px; align-items:flex-start;
+  }
+  .alert .icon{font-size:26px; line-height:1.2;}
+  .alert h2{font-size:17px; margin-bottom:5px;}
+  .alert p{font-size:14px; line-height:1.45;}
+  .alert-danger{background:var(--danger-bg); border:2px solid var(--danger); color:#ffd9d6;}
+  .alert-warn{background:var(--warn-bg); border:2px solid var(--warn); color:#f3e2bd;}
+  .alert-neutral{background:var(--card2); border:2px solid #5b7a56; color:#dfe9dc;}
+  .card{
+    background:var(--card); border-radius:var(--radius); padding:16px; margin-bottom:14px;
+  }
+  .card h3{font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:8px;}
+  .species-name{font-size:22px; font-weight:700; margin-bottom:2px; font-style:italic;}
+  .common-names{font-size:15px; color:var(--accent); margin-bottom:10px;}
+  .conf{display:inline-block; font-size:13px; padding:3px 10px; border-radius:20px; margin-bottom:10px;}
+  .conf-alta{background:#274a2a; color:#a9e6ad;}
+  .conf-media{background:#4a3d20; color:#f0ce8a;}
+  .conf-baja{background:#3c3c3c; color:#c9c9c9;}
+  .desc{font-size:14px; line-height:1.55; color:#d5dfd3;}
+  .desc a{color:var(--accent);}
+  .alt-item{padding:10px 0; border-top:1px solid #2c4029; font-size:15px;}
+  .alt-item:first-child{border-top:none;}
+  .alt-item .p{color:var(--muted); font-size:13px;}
+  .lookalike{font-size:14px; line-height:1.5; color:#ffd9d6;}
+  .lookalike a{color:#ffb3ae;}
+  .modal{
+    position:fixed; inset:0; background:rgba(0,0,0,.72); display:none;
+    align-items:flex-end; justify-content:center; z-index:50;
+  }
+  .modal.on{display:flex;}
+  .modal-sheet{
+    background:var(--card); border-radius:18px 18px 0 0; width:100%; max-width:520px;
+    padding:22px 20px calc(22px + env(safe-area-inset-bottom)); max-height:85vh; overflow-y:auto;
+  }
+  .modal-sheet h2{font-size:18px; margin-bottom:12px;}
+  .modal-sheet p, .modal-sheet li{font-size:14px; line-height:1.55; color:#d5dfd3; margin-bottom:10px;}
+  .modal-sheet ul{padding-left:20px;}
+  .modal-sheet .btn{margin-top:8px;}
+  .error-box{
+    display:none; background:var(--danger-bg); border:1px solid var(--danger);
+    border-radius:var(--radius); padding:14px; margin-top:14px; font-size:14px; line-height:1.5; color:#ffd9d6;
+  }
+  footer{
+    margin-top:22px; padding:0 16px; text-align:center; font-size:12px; color:#6f826d; line-height:1.5;
+  }
+  footer a{color:#6f826d;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🍄 ¿Qué seta es?</h1>
+  <button class="info-btn" id="infoBtn" aria-label="Información">i</button>
+</header>
+
+<div class="disclaimer">
+  <strong>Guía orientativa.</strong> Ninguna app puede confirmar que una seta sea segura para comer.
+  Antes de consumir cualquier seta silvestre, consulta siempre a un experto en persona.
+</div>
+
+<main>
+  <div class="capture-zone" id="captureZone">
+    <img class="preview" id="preview" alt="Foto de la seta">
+    <p id="hint">Haz una foto clara de la seta (sombrero y, si puedes, las láminas y el pie) o súbela de tu galería.</p>
+    <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted);width:100%;cursor:pointer"><input type="checkbox" id="soundToggle" checked style="width:20px;height:20px;accent-color:#7bc47f">🔊 Alarma sonora si detecta posible toxicidad</label>
+    <button class="btn btn-primary" id="camBtn">📷 Hacer foto</button>
+    <button class="btn btn-secondary" id="galBtn">🖼️ Subir de la galería</button>
+    <input type="file" id="camInput" accept="image/*" capture="environment" hidden>
+    <input type="file" id="galInput" accept="image/*" hidden>
+    <button class="btn btn-primary" id="analyzeBtn" style="display:none">🔍 Identificar</button>
+    <button class="btn btn-secondary" id="retryBtn" style="display:none">↺ Otra foto</button>
+  </div>
+
+  <div class="spinner" id="spinner">Analizando la foto…</div>
+  <div class="error-box" id="errorBox"></div>
+  <div class="result" id="result"></div>
+</main>
+
+<footer>
+  Orientación automática (Mushroom.id / Kindwise). La foto se envía a ese servicio externo para analizarla; ellos la conservan para mejorar su sistema y la anonimizan a los 6 meses. En esta app no se guarda nada.<br>
+  Si alguien se encuentra mal tras comer setas: <a href="tel:112">112</a> o Instituto Nacional de Toxicología <a href="tel:915620420">91 562 04 20</a>.
+</footer>
+
+<div class="modal" id="introModal">
+  <div class="modal-sheet">
+    <h2>Antes de empezar</h2>
+    <ul>
+      <li>Esta app identifica setas por foto <strong>solo a título orientativo</strong>. Las mejores herramientas de este tipo se equivocan con frecuencia, también con setas venenosas.</li>
+      <li>Si la app no llega a identificar la seta, dirá <strong>«no identificada»</strong>: nunca interpretes eso como que es segura.</li>
+      <li><strong>Nunca decidas comer una seta por lo que diga esta app.</strong> Solo una persona experta que la examine en mano puede confirmarlo.</li>
+      <li>Tu foto se envía a un servicio externo (Mushroom.id, de Kindwise) para analizarla. Ese servicio la conserva para entrenar y mejorar su sistema y la anonimiza a los 6 meses. En tu móvil no se guarda nada.</li>
+      <li>Puedes activar una <strong>alarma sonora</strong> que suena solo cuando la app detecta posible toxicidad en alguna coincidencia plausible. Que no suene no significa que la seta sea segura.</li>
+    </ul>
+    <button class="btn btn-primary" id="acceptBtn">Entendido</button>
+  </div>
+</div>
+
+<div class="modal" id="infoModal">
+  <div class="modal-sheet">
+    <h2>Cómo funciona</h2>
+    <p>La foto se analiza con el servicio Mushroom.id, que compara con miles de especies y devuelve las más parecidas, con su nombre, posible toxicidad y especies similares con las que se confunde.</p>
+    <p><strong>Lo que NO hace:</strong> no puede ver el olor, el sabor, la esporada ni dónde creció la seta, que son pistas que un experto usa en persona. Por eso ninguna identificación por foto es definitiva.</p>
+    <p>Si la app muestra una <strong>alerta de posible toxicidad</strong> (y suena la alarma, si la tienes activada), aléjate de esa seta. La alarma suena cuando la coincidencia principal o cualquier otra coincidencia plausible es tóxica, mortal o psicoactiva. Y aunque no salte ninguna alerta ni suene nada, la seta puede ser igualmente peligrosa: la ausencia de alerta o de sonido no significa que sea comestible.</p>
+    <p><strong>Recomendación oficial (AESAN):</strong> no recolectes ni comas setas que no conozcas con total seguridad; ante la duda, consulta a una asociación micológica. Si alguien se encuentra mal tras comer setas: <strong>112</strong> o Instituto Nacional de Toxicología <strong>91 562 04 20</strong>.</p>
+    <button class="btn btn-secondary" id="closeInfoBtn">Cerrar</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // Endpoint del proxy (Edge Function). Se configura al desplegar.
+  var PROXY_URL = "https://xwbzzbdfvmriysvmugon.supabase.co/functions/v1/identificar-seta";
+
+  var camInput = document.getElementById('camInput');
+  var galInput = document.getElementById('galInput');
+  var camBtn = document.getElementById('camBtn');
+  var galBtn = document.getElementById('galBtn');
+  var analyzeBtn = document.getElementById('analyzeBtn');
+  var retryBtn = document.getElementById('retryBtn');
+  var preview = document.getElementById('preview');
+  var hint = document.getElementById('hint');
+  var spinner = document.getElementById('spinner');
+  var resultBox = document.getElementById('result');
+  var errorBox = document.getElementById('errorBox');
+  var introModal = document.getElementById('introModal');
+  var infoModal = document.getElementById('infoModal');
+
+  var photoData = null; // {dataUrl, base64}
+  var audioCtx = null;
+  var soundToggle = document.getElementById('soundToggle');
+  try { soundToggle.checked = localStorage.getItem('setas_sonido') !== '0'; } catch(e){}
+  soundToggle.addEventListener('change', function(){
+    try { localStorage.setItem('setas_sonido', soundToggle.checked ? '1' : '0'); } catch(e){}
+  });
+  function unlockAudio(){
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){}
+    }
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  }
+  function playAlarm(){
+    if (!soundToggle.checked || !audioCtx) return;
+    try {
+      var t0 = audioCtx.currentTime;
+      for (var i = 0; i < 3; i++) {
+        var o = audioCtx.createOscillator();
+        var g = audioCtx.createGain();
+        o.type = 'square';
+        o.frequency.value = 880;
+        g.gain.setValueAtTime(0.0001, t0 + i*0.35);
+        g.gain.exponentialRampToValueAtTime(0.25, t0 + i*0.35 + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + i*0.35 + 0.25);
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start(t0 + i*0.35); o.stop(t0 + i*0.35 + 0.28);
+      }
+    } catch(e){}
+  }
+
+  // Aviso de primer uso
+  try {
+    if (!localStorage.getItem('setas_aviso_ok')) introModal.classList.add('on');
+  } catch(e) { introModal.classList.add('on'); }
+  document.getElementById('acceptBtn').addEventListener('click', function(){
+    try { localStorage.setItem('setas_aviso_ok', '1'); } catch(e){}
+    introModal.classList.remove('on');
+  });
+  document.getElementById('infoBtn').addEventListener('click', function(){ infoModal.classList.add('on'); });
+  document.getElementById('closeInfoBtn').addEventListener('click', function(){ infoModal.classList.remove('on'); });
+
+  camBtn.addEventListener('click', function(){ camInput.click(); });
+  galBtn.addEventListener('click', function(){ galInput.click(); });
+  camInput.addEventListener('change', onPick);
+  galInput.addEventListener('change', onPick);
+  retryBtn.addEventListener('click', reset);
+  analyzeBtn.addEventListener('click', analyze);
+
+  function onPick(ev){
+    var f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    downscale(f, 1024, 0.82, function(dataUrl){
+      photoData = { dataUrl: dataUrl, base64: dataUrl.split(',')[1] };
+      preview.src = dataUrl;
+      preview.style.display = 'block';
+      hint.style.display = 'none';
+      camBtn.style.display = 'none';
+      galBtn.style.display = 'none';
+      analyzeBtn.style.display = 'flex';
+      retryBtn.style.display = 'flex';
+      resultBox.classList.remove('on');
+      hideError();
+    });
+    ev.target.value = '';
+  }
+
+  function reset(){
+    photoData = null;
+    preview.style.display = 'none';
+    preview.src = '';
+    hint.style.display = '';
+    camBtn.style.display = 'flex';
+    galBtn.style.display = 'flex';
+    analyzeBtn.style.display = 'none';
+    retryBtn.style.display = 'none';
+    resultBox.classList.remove('on');
+    hideError();
+  }
+
+  function downscale(file, maxSide, quality, cb){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      var img = new Image();
+      img.onload = function(){
+        var w = img.width, h = img.height;
+        var scale = Math.min(1, maxSide / Math.max(w, h));
+        var cw = Math.round(w*scale), ch = Math.round(h*scale);
+        var c = document.createElement('canvas');
+        c.width = cw; c.height = ch;
+        c.getContext('2d').drawImage(img, 0, 0, cw, ch);
+        cb(c.toDataURL('image/jpeg', quality));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function showError(msg){
+    errorBox.textContent = msg;
+    errorBox.style.display = 'block';
+  }
+  function hideError(){
+    errorBox.style.display = 'none';
+    errorBox.textContent = '';
+  }
+
+  function confBand(p){
+    if (p >= 0.7) return {cls:'conf-alta', label:'Coincidencia alta'};
+    if (p >= 0.4) return {cls:'conf-media', label:'Coincidencia media: no es seguro'};
+    return {cls:'conf-baja', label:'Coincidencia baja: no fiable'};
+  }
+
+  var lastResultToxic = false;
+  function isToxic(s){
+    var ed = (s.details && s.details.edibility) || null;
+    return ed === 'poisonous' || ed === 'deadly' || (s.details && s.details.psychoactive === true);
+  }
+  function toxicityBlock(s){
+    var ed = (s.details && s.details.edibility) || null;
+    var psy = s.details && s.details.psychoactive;
+    if (isToxic(s)) {
+      var t = ed === 'deadly' ? 'ALERTA: PUEDE SER MORTAL' : 'ALERTA: POSIBLE SETA VENENOSA';
+      return '<div class="alert alert-danger"><div class="icon">☠️</div><div>' +
+        '<h2>' + t + '</h2>' +
+        '<p>Según la base de datos, esta especie es tóxica' + (psy ? ' y psicoactiva' : '') + '. No la toques más de lo necesario, no la mezcles con otras setas y, por supuesto, no la comas.</p>' +
+        '</div></div>';
+    }
+    if (ed === 'inedible') {
+      return '<div class="alert alert-warn"><div class="icon">⚠️</div><div>' +
+        '<h2>No comestible</h2>' +
+        '<p>Esta especie figura como no comestible. No la comas.</p></div></div>';
+    }
+    if (ed === 'edible' || ed === 'choice' || (ed && ed.indexOf('edible') === 0)) {
+      return '<div class="alert alert-warn"><div class="icon">⚠️</div><div>' +
+        '<h2>Figura como comestible, pero la app puede equivocarse</h2>' +
+        '<p>Las apps de foto confunden especies comestibles con tóxicas parecidas. <strong>No la comas sin que una persona experta la revise en mano.</strong></p></div></div>';
+    }
+    return '<div class="alert alert-neutral"><div class="icon">❓</div><div>' +
+      '<h2>Toxicidad desconocida: trátala como peligrosa</h2>' +
+      '<p>No hay datos fiables sobre si esta especie es tóxica. Que no salte una alerta no significa que sea segura.</p></div></div>';
+  }
+
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function render(data){
+    lastResultToxic = false;
+    resultBox.innerHTML = '';
+    if (!data || !data.is_mushroom || !data.is_mushroom.binary) {
+      resultBox.innerHTML =
+        '<div class="alert alert-warn"><div class="icon">🤷</div><div>' +
+        '<h2>No identificada</h2>' +
+        '<p>La foto no parece mostrar una seta con claridad o el servicio no la reconoce. ' +
+        '<strong>No identificada nunca significa segura.</strong> Prueba con otra foto más nítida, con el sombrero y las láminas visibles.</p></div></div>';
+      resultBox.classList.add('on');
+      return;
+    }
+    var sugg = (data.suggestions || []).filter(function(s){ return s.probability >= 0.03; });
+    if (!sugg.length) {
+      resultBox.innerHTML =
+        '<div class="alert alert-warn"><div class="icon">🤷</div><div>' +
+        '<h2>No identificada</h2>' +
+        '<p>El servicio no encuentra ninguna especie parecida con suficiente confianza. ' +
+        '<strong>No identificada nunca significa segura.</strong></p></div></div>';
+      resultBox.classList.add('on');
+      return;
+    }
+    var top = sugg[0];
+    var band = confBand(top.probability);
+    // Alarma: candidato principal tóxico, o cualquier otro candidato plausible (>=15%) tóxico/mortal/psicoactivo.
+    var plausibleToxic = sugg.filter(function(s){ return s.probability >= 0.15 && isToxic(s); });
+    if (plausibleToxic.length > 0) lastResultToxic = true;
+    var html = '';
+    if (!isToxic(top) && plausibleToxic.length > 0) {
+      html += '<div class="alert alert-danger"><div class="icon">☠️</div><div>' +
+        '<h2>CUIDADO: una de las posibles coincidencias es tóxica</h2>' +
+        '<p>La identificación no es clara y entre las especies posibles hay alguna tóxica (' +
+        plausibleToxic.map(function(s){ return '<em>' + esc(s.name) + '</em>'; }).join(', ') +
+        '). La incertidumbre no implica seguridad: trata esta seta como peligrosa.</p></div></div>';
+    }
+    if (band.cls === 'conf-baja') {
+      html += '<div class="alert alert-warn"><div class="icon">🤷</div><div>' +
+        '<h2>No identificada con fiabilidad</h2>' +
+        '<p>Ninguna coincidencia es suficientemente clara. Lo que sigue es solo una orientación lejana. ' +
+        '<strong>No identificada nunca significa segura.</strong></p></div></div>';
+    }
+    html += toxicityBlock(top);
+    var cn = (top.details && top.details.common_names && top.details.common_names.length)
+      ? top.details.common_names.slice(0,3).join(', ') : '';
+    html += '<div class="card"><h3>Posible coincidencia</h3>' +
+      '<div class="species-name">' + esc(top.name) + '</div>' +
+      (cn ? '<div class="common-names">' + esc(cn) + '</div>' : '') +
+      '<span class="conf ' + band.cls + '">' + band.label + '</span>';
+    var d = top.details || {};
+    if (d.description && d.description.value) {
+      var txt = d.description.value.replace(/\[\d+\]​?/g, '');
+      if (txt.length > 400) txt = txt.slice(0, 400).replace(/\s+\S*$/, '') + '…';
+      html += '<p class="desc">' + esc(txt) +
+        (d.url ? ' <a href="' + esc(d.url) + '" target="_blank" rel="noopener">Más en Wikipedia ↗</a>' : '') +
+        '</p>';
+    } else if (d.url) {
+      html += '<p class="desc"><a href="' + esc(d.url) + '" target="_blank" rel="noopener">Ficha en Wikipedia ↗</a></p>';
+    }
+    html += '</div>';
+    if (d.look_alike && d.look_alike.length) {
+      html += '<div class="card"><h3>Ojo: se confunde con</h3><p class="lookalike">' +
+        d.look_alike.slice(0,4).map(function(l){
+          return l.url ? '<a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.name) + '</a>' : esc(l.name);
+        }).join(' · ') +
+        '</p><p class="lookalike" style="margin-top:8px">Algunas de estas especies parecidas pueden ser tóxicas aunque la identificación no lo indique.</p></div>';
+    }
+    if (sugg.length > 1) {
+      html += '<div class="card"><h3>También podría ser</h3>';
+      sugg.slice(1,4).forEach(function(s){
+        var b = confBand(s.probability);
+        var ed = s.details && s.details.edibility;
+        var edTxt = ed === 'poisonous' ? ' · ☠️ tóxica' : ed === 'deadly' ? ' · ☠️ mortal'
+          : (s.details && s.details.psychoactive === true) ? ' · ☠️ psicoactiva' : '';
+        html += '<div class="alt-item"><em>' + esc(s.name) + '</em>' + edTxt +
+          '<div class="p">' + b.label + '</div></div>';
+      });
+      html += '</div>';
+    }
+    resultBox.innerHTML = html;
+    resultBox.classList.add('on');
+    resultBox.scrollIntoView({behavior:'smooth', block:'start'});
+    if (lastResultToxic) playAlarm();
+  }
+
+  function analyze(){
+    if (!photoData) return;
+    unlockAudio();
+    hideError();
+    resultBox.classList.remove('on');
+    spinner.classList.add('on');
+    analyzeBtn.disabled = true;
+
+    fetch(PROXY_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({image: photoData.base64})
+    }).then(function(r){
+      return r.json().then(function(j){ return {status: r.status, body: j}; });
+    }).then(function(res){
+      spinner.classList.remove('on');
+      analyzeBtn.disabled = false;
+      if (res.status === 200 && res.body) {
+        render(res.body);
+      } else if (res.status === 429) {
+        showError('Se ha alcanzado el límite diario de identificaciones de prueba. Inténtalo de nuevo mañana.');
+      } else {
+        showError('No se pudo analizar la foto (error ' + res.status + '). Inténtalo de nuevo en un momento.');
+      }
+    }).catch(function(){
+      spinner.classList.remove('on');
+      analyzeBtn.disabled = false;
+      showError('Sin conexión o el servicio no responde. Comprueba tu red e inténtalo otra vez.');
+    });
+  }
+})();
+</script>
+</body>
+</html>
