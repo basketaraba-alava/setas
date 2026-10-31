@@ -171,6 +171,7 @@
 
   // Endpoint del proxy (Edge Function). Se configura al desplegar.
   var PROXY_URL = "https://xwbzzbdfvmriysvmugon.supabase.co/functions/v1/identificar-seta";
+  var APP_TOKEN = "jlrrcktHaLvBIsgVNrARuRAtbpHQYep2"; // token de app (obfuscation, no secreto fuerte); los limites reales estan en el servidor
 
   var camInput = document.getElementById('camInput');
   var galInput = document.getElementById('galInput');
@@ -428,8 +429,8 @@
     analyzeBtn.disabled = true;
 
     fetch(PROXY_URL, {
+        headers: { "Content-Type": "application/json", "X-Setas-Token": APP_TOKEN },
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({image: photoData.base64})
     }).then(function(r){
       return r.json().then(function(j){ return {status: r.status, body: j}; });
