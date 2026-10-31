@@ -501,7 +501,7 @@
       if (res.status === 200 && res.body) {
         render(res.body);
       } else if (res.status === 429) {
-        showError('Se ha alcanzado el límite diario de identificaciones de prueba. Inténtalo de nuevo mañana.');
+        showError('Se han agotado las identificaciones de la prueba gratuita (100 en total). No hay cobro automático.');
       } else {
         showError('No se pudo analizar la foto (error ' + res.status + '). Inténtalo de nuevo en un momento.');
       }
