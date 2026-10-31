@@ -103,9 +103,28 @@
     margin-top:22px; padding:0 16px; text-align:center; font-size:12px; color:#6f826d; line-height:1.5;
   }
   footer a{color:#6f826d;}
+  .lock{
+    position:fixed; inset:0; background:var(--bg); z-index:50;
+    display:none; align-items:center; justify-content:center; padding:24px;
+  }
+  .lock.on{display:flex;}
+  .lock-card{
+    max-width:340px; text-align:center; background:var(--card);
+    border-radius:var(--radius); padding:28px 22px;
+  }
+  .lock-card .emoji{font-size:34px;}
+  .lock-card h2{font-size:18px; margin:12px 0 8px;}
+  .lock-card p{font-size:14px; line-height:1.5; color:var(--muted);}
 </style>
 </head>
 <body>
+<div class="lock" id="lockScreen" role="alert">
+  <div class="lock-card">
+    <div class="emoji">🔒</div>
+    <h2>App privada</h2>
+    <p>Esta app es de uso personal. Ábrela desde tu enlace personal para usarla.</p>
+  </div>
+</div>
 
 <header>
   <h1>🍄 ¿Qué seta es?</h1>
@@ -171,7 +190,19 @@
 
   // Endpoint del proxy (Edge Function). Se configura al desplegar.
   var PROXY_URL = "https://xwbzzbdfvmriysvmugon.supabase.co/functions/v1/identificar-seta";
-  var APP_TOKEN = "jlrrcktHaLvBIsgVNrARuRAtbpHQYep2"; // token de app (obfuscation, no secreto fuerte); los limites reales estan en el servidor
+  // Acceso privado: la capability llega SOLO en el enlace personal de Javi (fragmento #k=,
+  // nunca en query), se guarda en este dispositivo (localStorage) y la valida el servidor.
+  var appKey = null;
+  try {
+    var h = window.location.hash || '';
+    var m = h.match(/#k=([A-Za-z0-9_\-]{20,})/);
+    if (m) {
+      localStorage.setItem('setas_key', m[1]);
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+    appKey = localStorage.getItem('setas_key');
+  } catch(e){}
+
 
   var camInput = document.getElementById('camInput');
   var galInput = document.getElementById('galInput');
@@ -222,6 +253,10 @@
   try {
     if (!localStorage.getItem('setas_aviso_ok')) introModal.classList.add('on');
   } catch(e) { introModal.classList.add('on'); }
+  if (!appKey) {
+    introModal.classList.remove('on');
+    document.getElementById('lockScreen').classList.add('on');
+  }
   document.getElementById('acceptBtn').addEventListener('click', function(){
     try { localStorage.setItem('setas_aviso_ok', '1'); } catch(e){}
     introModal.classList.remove('on');
@@ -429,7 +464,7 @@
     analyzeBtn.disabled = true;
 
     fetch(PROXY_URL, {
-        headers: { "Content-Type": "application/json", "X-Setas-Token": APP_TOKEN },
+        headers: { "Content-Type": "application/json", "X-Setas-Token": appKey || "" },
       method: 'POST',
       body: JSON.stringify({image: photoData.base64})
     }).then(function(r){
